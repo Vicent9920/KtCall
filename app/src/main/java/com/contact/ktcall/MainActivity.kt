@@ -3,7 +3,6 @@ package com.contact.ktcall
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -32,10 +31,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material3.ripple
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Divider
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
@@ -49,6 +44,7 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.lightColorScheme
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -58,7 +54,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
@@ -74,7 +69,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.contact.ktcall.ui.theme.KtCallTheme
+import com.contact.ktcall.ui.ContactsScreen
 
 
 // --- 1. 路由定义 (Route Definition) ---
@@ -83,6 +78,7 @@ sealed class Screen(val route: String, val title: String, val icon: Int?) {
     object DialPad : Screen("dialpad", "键盘", R.drawable.ic_bottom_dial)
     object CallLog : Screen("calllog", "最近记录", R.drawable.ic_bottom_log)
     object Contacts : Screen("contacts", "联系人", R.drawable.ic_bottom_person)
+
     // 通话页面不需要图标，因为它不显示在底部导航栏
     object InCall : Screen("incall/{number}", "通话中", null) {
         fun createRoute(number: String) = "incall/$number"
@@ -151,7 +147,7 @@ fun DialerApp() {
             }
             // 页面 3: 联系人
             composable(Screen.Contacts.route) {
-                SimplePlaceholderScreen("联系人列表")
+                ContactsScreen()
             }
             // 页面 4: 通话中 (隐藏页面)
             composable(Screen.InCall.route) { backStackEntry ->
@@ -180,7 +176,12 @@ fun DialerBottomNavigation(navController: NavHostController) {
             val isSelected = currentDestination?.hierarchy?.any { it.route == screen.route } == true
 
             NavigationBarItem(
-                icon = { Icon(painter = painterResource(id = screen.icon!!), contentDescription = null) },
+                icon = {
+                    Icon(
+                        painter = painterResource(id = screen.icon!!),
+                        contentDescription = null
+                    )
+                },
                 label = { Text(screen.title) },
                 selected = isSelected,
                 colors = NavigationBarItemDefaults.colors(
@@ -227,12 +228,17 @@ fun DialPadScreen(onCallClick: (String) -> Unit) {
     val haptic = LocalHapticFeedback.current
 
     Column(
-        modifier = Modifier.fillMaxSize().background(Color.White),
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.White),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // 1. 号码显示区域 (占据剩余空间，让内容垂直居中或偏下)
         Box(
-            modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 32.dp),
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .padding(horizontal = 32.dp),
             contentAlignment = Alignment.BottomCenter
         ) {
             Text(
@@ -250,7 +256,9 @@ fun DialPadScreen(onCallClick: (String) -> Unit) {
         LazyVerticalGrid(
             columns = GridCells.Fixed(3),
             contentPadding = PaddingValues(horizontal = 24.dp),
-            modifier = Modifier.fillMaxWidth().wrapContentHeight(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .wrapContentHeight(),
             verticalArrangement = Arrangement.spacedBy(8.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
@@ -340,8 +348,10 @@ fun DialPadButton(
                     onClick = onClick,
                     onLongClick = onLongClick,
                     interactionSource = remember { MutableInteractionSource() },
-                    indication = ripple(bounded = true,
-                        color = Color.LightGray)
+                    indication = ripple(
+                        bounded = true,
+                        color = Color.LightGray
+                    )
                 )
                 .padding(vertical = 8.dp)
         },
@@ -394,7 +404,9 @@ val mockCallLogs = listOf(
 @Composable
 fun CallLogScreen(onItemClick: (String) -> Unit) {
     Column(
-        modifier = Modifier.fillMaxSize().background(Color.White)
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.White)
     ) {
         // 顶部标题区域
         Box(
@@ -468,7 +480,7 @@ fun CallLogItemRow(log: CallLogEntry, onClick: () -> Unit) {
             )
             Row(verticalAlignment = Alignment.CenterVertically) {
                 // 通话类型图标
-                val typeIcon = when(log.type) {
+                val typeIcon = when (log.type) {
                     CallType.INCOMING -> R.mipmap.ic_call_in
                     CallType.OUTGOING -> R.mipmap.ic_call_out
                     CallType.MISSED -> R.mipmap.ic_call_missed
@@ -526,14 +538,24 @@ fun InCallPlaceholder(number: String, onEndCall: () -> Unit) {
             )
             Spacer(Modifier.height(16.dp))
             Text(number, style = MaterialTheme.typography.headlineLarge, color = Color.White)
-            Text("正在通话 00:05", style = MaterialTheme.typography.bodyLarge, color = Color.White.copy(alpha = 0.7f))
+            Text(
+                "正在通话 00:05",
+                style = MaterialTheme.typography.bodyLarge,
+                color = Color.White.copy(alpha = 0.7f)
+            )
         }
 
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            IconButton(onClick = {}) { Icon(painter = painterResource(id = R.drawable.ic_mute), null, tint = Color.White) }
+            IconButton(onClick = {}) {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_mute),
+                    null,
+                    tint = Color.White
+                )
+            }
             // 挂断按钮
             FloatingActionButton(
                 onClick = onEndCall,
@@ -542,7 +564,13 @@ fun InCallPlaceholder(number: String, onEndCall: () -> Unit) {
             ) {
                 Image(painterResource(id = R.mipmap.ic_hangup), contentDescription = "挂断")
             }
-            IconButton(onClick = {}) { Icon(painterResource(id = R.drawable.ic_speak), null, tint = Color.White) }
+            IconButton(onClick = {}) {
+                Icon(
+                    painterResource(id = R.drawable.ic_speak),
+                    null,
+                    tint = Color.White
+                )
+            }
         }
     }
 }
