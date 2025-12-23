@@ -1,7 +1,8 @@
 package com.contact.ktcall.ui
 
+import android.annotation.SuppressLint
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.animateFloatAsState // 修改：引入 Float 动画
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -31,6 +32,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -69,6 +71,7 @@ object MockData {
 
 // --- 2. 主屏幕 Composable ---
 
+@SuppressLint("UnusedBoxWithConstraintsScope")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ContactsScreen() {
@@ -78,26 +81,36 @@ fun ContactsScreen() {
 
     // 定义尺寸常量
     val density = LocalDensity.current
-    val headerHeightDp = 320.dp // 模拟 XML 中的 420dp 高头部
+    val headerHeightDp = 320.dp
     val toolbarHeightDp = 64.dp
 
-    // 将 dp 转换为 px 用于计算
     val headerHeightPx = with(density) { headerHeightDp.toPx() }
     val toolbarHeightPx = with(density) { toolbarHeightDp.toPx() }
 
-    // 计算滚动相关的状态
-    val showToolbarBackground by remember {
-        derivedStateOf {
-            val firstVisibleIndex = listState.firstVisibleItemIndex
-            val firstVisibleOffset = listState.firstVisibleItemScrollOffset
+    // Header 可折叠的总距离
+    val collapseRangePx = headerHeightPx - toolbarHeightPx
 
-            // 如果 Header (Index 0) 已经滚过了一定距离（保留 Toolbar 高度），或者已经滚到了后面的 item
-            firstVisibleIndex > 0 || firstVisibleOffset > (headerHeightPx - toolbarHeightPx)
+    // Toolbar 图标的初始位移 (Header底部 - Toolbar高度)
+    val maxToolbarOffsetPx = collapseRangePx
+
+    // 计算滚动相关的状态
+    val scrollOffset = remember { derivedStateOf { listState.firstVisibleItemScrollOffset.toFloat() } }
+    val firstVisibleIndex = remember { derivedStateOf { listState.firstVisibleItemIndex } }
+
+    // 计算折叠进度 (0.0 = 展开, 1.0 = 折叠)
+    val collapseFraction by remember {
+        derivedStateOf {
+            if (firstVisibleIndex.value > 0) 1f
+            else (scrollOffset.value / collapseRangePx).coerceIn(0f, 1f)
         }
     }
 
-    // 修复：不使用 animateColorAsState，改为使用 animateFloatAsState 控制 Alpha。
-    // 避免 Color.Transparent (0x00000000) 到 Surface (0xFFFFFFFF) 插值过程中产生灰色/黑色中间值。
+    // 状态：是否显示 Toolbar 背景和标题
+    // 修改判断逻辑：当折叠进度接近完成时才显示 Toolbar 标题，让过渡更自然
+    val showToolbarBackground by remember {
+        derivedStateOf { collapseFraction > 0.9f }
+    }
+
     val targetAlpha = if (showToolbarBackground) 1f else 0f
     val toolbarAlpha by animateFloatAsState(
         targetValue = targetAlpha,
@@ -105,23 +118,33 @@ fun ContactsScreen() {
         label = "ToolbarAlphaAnimation"
     )
 
-    // 计算大标题的透明度：向上滚时逐渐消失
+    // Toolbar 垂直位移：随 Header 滚动而上移
+    val toolbarTranslationY by remember {
+        derivedStateOf {
+            if (firstVisibleIndex.value == 0) {
+                (maxToolbarOffsetPx - scrollOffset.value).coerceAtLeast(0f)
+            } else {
+                0f
+            }
+        }
+    }
+
+    // Header 大标题透明度：在最后阶段才快速消失，以便和 Toolbar 标题衔接
     val bigTitleAlpha by remember {
         derivedStateOf {
-            if (listState.firstVisibleItemIndex > 0) 0f
-            else {
-                val offset = listState.firstVisibleItemScrollOffset
-                // 当滚动距离超过一半高度时开始变透明
-                val progress = (offset / (headerHeightPx * 0.8f)).coerceIn(0f, 1f)
-                1f - progress
+            // 0.0 -> 0.7 保持不透明，0.7 -> 1.0 快速变透明
+            if (collapseFraction > 0.7f) {
+                1f - ((collapseFraction - 0.7f) / 0.3f).coerceIn(0f, 1f)
+            } else {
+                1f
             }
         }
     }
 
     // FAB 控制逻辑
     var showFab by remember { mutableStateOf(false) }
-    LaunchedEffect(listState.isScrollInProgress, listState.firstVisibleItemIndex) {
-        if (listState.firstVisibleItemIndex == 0) {
+    LaunchedEffect(listState.isScrollInProgress, firstVisibleIndex.value) {
+        if (firstVisibleIndex.value == 0) {
             showFab = false
         } else if (listState.isScrollInProgress) {
             showFab = true
@@ -133,35 +156,61 @@ fun ContactsScreen() {
         }
     }
 
-    // 修复：给根 Box 添加背景色，防止透明区域透出 Window 的黑色背景导致闪烁
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.surface)
     ) {
-        // 1. 列表内容 (Header 作为第一个 Item)
+        // 1. 列表内容
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 80.dp) // 底部留白给 FAB
+            contentPadding = PaddingValues(bottom = 80.dp)
         ) {
-            // --- 模拟 CollapsingToolbarLayout 的头部区域 ---
+            // --- 头部区域 ---
             item {
-                Box(
+                BoxWithConstraints( // 使用 BoxWithConstraints 获取宽度以计算平移
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(headerHeightDp)
                         .background(MaterialTheme.colorScheme.surface)
                 ) {
-                    // 大标题区域 (Gravity Bottom)
+                    val maxWidthPx = with(density) { maxWidth.toPx() }
+
+                    // 动态计算 Header 文本的变换
+                    val textGraphicsModifier = Modifier.graphicsLayer {
+                        alpha = bigTitleAlpha
+
+                        // 1. 水平平移 (TranslationX)
+                        // 目标：从中心 (0) 移到左侧。
+                        // 假设文本块大概占宽度的 40% (估算)，要移到左边 padding 24dp 的位置
+                        // 向左移动距离约为：屏幕宽度的一半 - 左边距 - 文本一半宽(估算)
+                        // 这里使用一个经验值系数 0.35f * maxWidthPx 来模拟移动到左侧
+                        translationX = -maxWidthPx * 0.35f * collapseFraction
+
+                        // 2. 垂直平移 (TranslationY)
+                        // 目标：从 Header 中心 移到 Toolbar 的中心位置。
+                        // 随着 Box 向上滚动，内容会随之上升。我们需要补偿一定的 Y 值让它看起来"走得慢一点"或者"停在 Toolbar 区域"
+                        // 这里的计算让文本在滚动过程中稍微向下偏移，抵消一部分向上滚动的距离，从而对齐到 Toolbar 高度
+                        translationY = collapseFraction * (headerHeightPx - toolbarHeightPx) * 0.5f
+
+                        // 3. 缩放 (Scale)
+                        // 从 1.0 缩小到 0.8，模拟变成 Toolbar 标题的大小
+                        val scale = 1f - (0.2f * collapseFraction)
+                        scaleX = scale
+                        scaleY = scale
+                    }
+
+                    // 大标题区域
+                    // 初始状态：居中 (Alignment.Center)
                     Column(
                         modifier = Modifier
-                            .align(Alignment.BottomStart)
-                            .padding(start = 24.dp, bottom = 24.dp)
-                            .graphicsLayer { alpha = bigTitleAlpha } // 随滚动淡出
+                            .align(Alignment.Center) // 关键：初始完全居中
+                            .then(textGraphicsModifier), // 应用动态变换
+                        horizontalAlignment = Alignment.CenterHorizontally // 文字内容水平居中
                     ) {
                         Text(
-                            text = "联系人",
+                            text = "电话",
                             style = MaterialTheme.typography.displayMedium.copy(fontWeight = FontWeight.Bold),
                             color = MaterialTheme.colorScheme.onSurface
                         )
@@ -186,25 +235,23 @@ fun ContactsScreen() {
             }
         }
 
-        // 2. 固定的 Toolbar (Pin 效果)
-        // 始终覆盖在最上层
+        // 2. 固定的 Toolbar
         TopAppBar(
             title = {
-                // 当 Header 滚出去后，显示 Toolbar 上的小标题
+                // 当 Header 几乎完全折叠后，显示 Toolbar 上的标题
                 androidx.compose.animation.AnimatedVisibility(
                     visible = showToolbarBackground,
                     enter = fadeIn(),
                     exit = fadeOut()
                 ) {
                     Text(
-                        text = "联系人",
+                        text = "电话",
                         style = MaterialTheme.typography.titleLarge,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
             },
-            // 修复：移除 navigationIcon 块（全选按钮）
             actions = {
                 IconButton(onClick = { /* 搜索 */ }) {
                     Icon(Icons.Default.Search, contentDescription = "搜索")
@@ -217,18 +264,17 @@ fun ContactsScreen() {
                 }
             },
             colors = TopAppBarDefaults.topAppBarColors(
-                // 修复：始终使用 Surface 基色，仅对 Alpha 通道应用动画
-                // 这样避免了 RGB 从 0 (黑) 变到 255 (白) 过程中的灰色状态
                 containerColor = MaterialTheme.colorScheme.surface.copy(alpha = toolbarAlpha),
                 scrolledContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = toolbarAlpha),
-                // 确保按钮在透明背景下也清晰可见
                 actionIconContentColor = MaterialTheme.colorScheme.onSurface,
                 navigationIconContentColor = MaterialTheme.colorScheme.primary
             ),
-            modifier = Modifier.align(Alignment.TopCenter)
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .graphicsLayer { translationY = toolbarTranslationY }
         )
 
-        // 3. FloatingActionButton (底部居中)
+        // 3. FloatingActionButton
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -298,7 +344,7 @@ fun ContactItem(contact: Contact) {
     }
 }
 
-// 辅助扩展函数：获取 Elevation 颜色
+// 辅助扩展函数
 @Composable
 fun ColorScheme.surfaceColorAtElevation(elevation: androidx.compose.ui.unit.Dp): Color {
     val alpha = ((4.5f * kotlin.math.ln(elevation.value + 1)) + 2f) / 100f
