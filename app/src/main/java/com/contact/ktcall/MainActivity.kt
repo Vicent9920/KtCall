@@ -70,6 +70,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.contact.ktcall.ui.ContactsScreen
+import com.contact.ktcall.ui.contact.Contact3Screen
 
 
 // --- 1. 路由定义 (Route Definition) ---
@@ -147,7 +148,7 @@ fun DialerApp() {
             }
             // 页面 3: 联系人
             composable(Screen.Contacts.route) {
-                ContactsScreen()
+                Contact3Screen()
             }
             // 页面 4: 通话中 (隐藏页面)
             composable(Screen.InCall.route) { backStackEntry ->
