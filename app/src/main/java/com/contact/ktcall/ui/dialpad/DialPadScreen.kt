@@ -36,16 +36,23 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Backspace
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Backspace
 import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.Dialpad
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.Task
+import androidx.compose.material.icons.filled.VideoCall
 import androidx.compose.material3.Divider
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -154,6 +161,7 @@ fun DialPadScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .padding(bottom = 76.dp)
                 // [修复顶部距离核心]：
                 // 添加 statusBarsPadding，让内容自动避让状态栏高度。
                 // 同时也处理 displayCutout (刘海屏区域)，防止内容被刘海遮挡。
@@ -178,7 +186,7 @@ fun DialPadScreen(
                 // 底部 Padding 策略：
                 // 展开时：留出键盘高度 (约420dp)
                 // 收起时：留出 FAB 高度 + 导航栏高度 (约100dp)
-                contentPadding = PaddingValues(bottom = if (isDialPadExpanded) 420.dp else 120.dp)
+                contentPadding = PaddingValues(bottom = if (isDialPadExpanded) 420.dp else 0.dp)
             ) {
                 items(searchResults) { contact ->
                     SearchContactItem(contact, inputNumber)
@@ -201,7 +209,7 @@ fun DialPadScreen(
                     // navigationBarsPadding 确保内容不被手势横条遮挡
                     .navigationBarsPadding()
             ) {
-                Divider(color = DividerColor, thickness = 0.5.dp)
+                HorizontalDivider(color = DividerColor, thickness = 0.5.dp)
 
                 InputDisplayArea(number = inputNumber)
 
@@ -243,7 +251,7 @@ fun DialPadScreen(
                 modifier = Modifier.size(56.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Default.Send, // 保持图标不变
+                    imageVector = Icons.Default.Dialpad, // 保持图标不变
                     contentDescription = "Open Keypad"
                 )
             }
@@ -264,8 +272,8 @@ fun TopActionToolbar() {
         verticalAlignment = Alignment.CenterVertically
     ) {
         // 视频中顶部比较干净，这里保留功能按钮但调淡颜色
-        IconButton(onClick = { }) { Icon(Icons.Default.FavoriteBorder, contentDescription = null, tint = TextSecondary) }
-        IconButton(onClick = { }) { Icon(Icons.Default.Email, contentDescription = null, tint = TextSecondary) }
+//        IconButton(onClick = { }) { Icon(Icons.Default.Task, contentDescription = null, tint = TextSecondary) }
+        IconButton(onClick = { }) { Icon(Icons.Default.Search, contentDescription = null, tint = TextSecondary) }
         IconButton(onClick = { }) { Icon(Icons.Default.MoreVert, contentDescription = null, tint = TextSecondary) }
     }
 }
@@ -297,7 +305,7 @@ fun SearchContactItem(contact: Contact, highlight: String) {
     ) {
         Box(
             modifier = Modifier
-                .size(44.dp)
+                .size(36.dp)
                 .clip(CircleShape)
                 .background(contact.avatarColor),
             contentAlignment = Alignment.Center
@@ -306,7 +314,7 @@ fun SearchContactItem(contact: Contact, highlight: String) {
                 imageVector = Icons.Default.Person,
                 contentDescription = null,
                 tint = Color.White,
-                modifier = Modifier.size(28.dp)
+                modifier = Modifier.size(24.dp)
             )
         }
         Spacer(modifier = Modifier.width(16.dp))
@@ -447,7 +455,7 @@ fun ActionRow(
                 // 没数字时显示视频通话或其他
             } else {
                 Icon(
-                    imageVector = Icons.Default.Favorite,
+                    imageVector = Icons.Default.VideoCall,
                     contentDescription = "Video",
                     tint = SamsungGreen,
                     modifier = Modifier.size(30.dp)
@@ -483,7 +491,7 @@ fun ActionRow(
                 exit = fadeOut() + scaleOut()
             ) {
                 Icon(
-                    imageVector = Icons.Filled.ArrowBack,
+                    imageVector = Icons.AutoMirrored.Filled.Backspace,
                     contentDescription = "Delete",
                     tint = TextSecondary, // 灰色删除键
                     modifier = Modifier

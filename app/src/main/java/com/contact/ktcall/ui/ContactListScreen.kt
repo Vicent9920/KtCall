@@ -473,7 +473,11 @@ fun ContactItem(contact: Contact) {
                     offsetX = 0f
                 },
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-            shape = MaterialTheme.shapes.medium
+            shape = MaterialTheme.shapes.medium,
+            // 添加这一行：强制将背景色设为白色
+            colors = CardDefaults.cardColors(
+                containerColor = Color.White
+            )
         ) {
             Row(
                 modifier = Modifier

@@ -345,15 +345,7 @@ fun CallLogItemRow(log: CallLogEntry, onClick: () -> Unit) {
     }
 }
 
-@Composable
-fun SimplePlaceholderScreen(title: String) {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(title, style = MaterialTheme.typography.headlineLarge, color = Color.LightGray)
-    }
-}
+
 
 @Composable
 fun InCallPlaceholder(number: String, onEndCall: () -> Unit) {
