@@ -1,14 +1,15 @@
 package com.contact.ktcall
 
+import DialPadScreen
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,22 +22,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -44,24 +38,19 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.lightColorScheme
-import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -69,6 +58,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.blankj.utilcode.util.BarUtils
 import com.contact.ktcall.ui.ContactsScreen
 
 
@@ -96,6 +86,7 @@ val bottomNavItems = listOf(
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        BarUtils.setStatusBarLightMode(this,true)
         setContent {
             SamsungDialerTheme {
                 DialerApp()
@@ -118,44 +109,56 @@ fun SamsungDialerTheme(content: @Composable () -> Unit) {
 }
 
 // --- 3. 应用骨架 (App Scaffold) ---
+// --- DialerApp 修改 ---
 @Composable
 fun DialerApp() {
     val navController = rememberNavController()
+    // 1. 控制底部导航栏显示的状态
+    var isBottomBarVisible by remember { mutableStateOf(true) }
 
     Scaffold(
-        bottomBar = { DialerBottomNavigation(navController) }
+        // 2. 根据状态决定是否显示底部导航
+        bottomBar = {
+            // 使用 AnimatedVisibility 让底部栏消失得更自然（可选，也可以直接用 if）
+            AnimatedVisibility(
+                visible = isBottomBarVisible,
+                enter = slideInVertically { it },
+                exit = slideOutVertically { it }
+            ) {
+                DialerBottomNavigation(navController)
+            }
+        }
     ) { innerPadding ->
-        // 导航主机
         NavHost(
             navController = navController,
             startDestination = Screen.DialPad.route,
             modifier = Modifier.padding(innerPadding)
         ) {
-            // 页面 1: 拨号盘
             composable(Screen.DialPad.route) {
+                // 3. 将状态回调传递给 DialPadScreen
                 DialPadScreen(
                     onCallClick = { number ->
                         navController.navigate(Screen.InCall.createRoute(number))
+                    },
+                    // 当输入框不为空时，隐藏底部栏
+                    onSearchStateChanged = { isSearching ->
+                        isBottomBarVisible = !isSearching
                     }
                 )
             }
-            // 页面 2: 通话记录
             composable(Screen.CallLog.route) {
-                CallLogScreen {
-
-                }
+                // 进入其他页面时确保底部栏显示
+                LaunchedEffect(Unit) { isBottomBarVisible = true }
+                CallLogScreen {} // 假设你已定义
             }
-            // 页面 3: 联系人
             composable(Screen.Contacts.route) {
+                LaunchedEffect(Unit) { isBottomBarVisible = true }
                 ContactsScreen()
             }
-            // 页面 4: 通话中 (隐藏页面)
             composable(Screen.InCall.route) { backStackEntry ->
-                val number = backStackEntry.arguments?.getString("number") ?: "未知号码"
-                InCallPlaceholder(
-                    number = number,
-                    onEndCall = { navController.popBackStack() }
-                )
+                LaunchedEffect(Unit) { isBottomBarVisible = false } // 通话中肯定不显示
+                val number = backStackEntry.arguments?.getString("number") ?: ""
+                InCallPlaceholder(number = number) { navController.popBackStack() }
             }
         }
     }
@@ -208,174 +211,6 @@ fun DialerBottomNavigation(navController: NavHostController) {
 
 // --- 5. 页面占位符 (Placeholders) ---
 
-
-// 定义按键数据结构
-data class DialKey(val digit: String, val subText: String = "")
-
-// 键盘数据源
-val dialKeys = listOf(
-    DialKey("1", "  "), DialKey("2", "ABC"), DialKey("3", "DEF"),
-    DialKey("4", "GHI"), DialKey("5", "JKL"), DialKey("6", "MNO"),
-    DialKey("7", "PQRS"), DialKey("8", "TUV"), DialKey("9", "WXYZ"),
-    DialKey("*", ""), DialKey("0", "+"), DialKey("#", "")
-)
-
-
-@Composable
-fun DialPadScreen(onCallClick: (String) -> Unit) {
-    // 状态管理：当前输入的号码
-    var phoneNumber by remember { mutableStateOf("") }
-    val haptic = LocalHapticFeedback.current
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.White),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        // 1. 号码显示区域 (占据剩余空间，让内容垂直居中或偏下)
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
-                .padding(horizontal = 32.dp),
-            contentAlignment = Alignment.BottomCenter
-        ) {
-            Text(
-                text = phoneNumber,
-                style = MaterialTheme.typography.displayMedium.copy(
-                    fontWeight = FontWeight.Medium,
-                    fontSize = if (phoneNumber.length > 10) 32.sp else 48.sp // 动态字体大小
-                ),
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(bottom = 24.dp)
-            )
-        }
-
-        // 2. 键盘区域
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(3),
-            contentPadding = PaddingValues(horizontal = 24.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .wrapContentHeight(),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            items(dialKeys) { key ->
-                DialPadButton(
-                    key = key,
-                    onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove) // 震动反馈
-                        phoneNumber += key.digit
-                    },
-                    onLongClick = {
-                        // 长按 0 输入 +
-                        if (key.digit == "0") {
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            phoneNumber += "+"
-                        }
-                    }
-                )
-            }
-        }
-
-        // 3. 底部操作栏 (拨号 & 删除)
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 24.dp)
-                .height(80.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceEvenly
-        ) {
-            // 左侧占位 (为了让拨号键居中)
-            Spacer(modifier = Modifier.size(64.dp))
-
-            // 拨号按钮
-            FilledIconButton(
-                onClick = { onCallClick(phoneNumber) },
-                modifier = Modifier.size(64.dp),
-                colors = IconButtonDefaults.filledIconButtonColors(
-                    containerColor = MaterialTheme.colorScheme.primary
-                )
-            ) {
-                Icon(
-                    Icons.Default.Call,
-                    contentDescription = "拨打",
-                    modifier = Modifier.size(32.dp),
-                    tint = Color.White
-                )
-            }
-
-            // 删除按钮 (仅当有输入时显示)
-            Box(modifier = Modifier.size(64.dp), contentAlignment = Alignment.Center) {
-                if (phoneNumber.isNotEmpty()) {
-                    IconButton(
-                        onClick = {
-                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            phoneNumber = phoneNumber.dropLast(1)
-                        }
-                    ) {
-                        Icon(
-                            painter = painterResource(id = R.mipmap.ic_delete),
-                            contentDescription = "删除",
-                            tint = Color.Gray,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                }
-            }
-        }
-
-        // 底部留白，适配 BottomNavigation
-        Spacer(modifier = Modifier.height(16.dp))
-    }
-}
-
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-fun DialPadButton(
-    key: DialKey,
-    onClick: () -> Unit,
-    onLongClick: () -> Unit
-) {
-    // 简单的圆形按键布局
-    Box(
-        modifier = Modifier.run {
-            clip(CircleShape)
-                .combinedClickable(
-                    onClick = onClick,
-                    onLongClick = onLongClick,
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = ripple(
-                        bounded = true,
-                        color = Color.LightGray
-                    )
-                )
-                .padding(vertical = 8.dp)
-        },
-        contentAlignment = Alignment.Center
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                text = key.digit,
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Normal
-            )
-            if (key.subText.isNotEmpty()) {
-                Text(
-                    text = key.subText,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color.Gray,
-                    fontSize = 10.sp
-                )
-            } else {
-                Spacer(modifier = Modifier.height(12.dp)) // 保持高度一致
-            }
-        }
-    }
-}
 
 // 5.1 数据模型
 enum class CallType { INCOMING, OUTGOING, MISSED, REJECTED }
