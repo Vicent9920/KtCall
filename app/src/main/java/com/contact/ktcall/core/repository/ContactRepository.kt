@@ -23,6 +23,8 @@ interface ContactRepository : BaseRepository {
     fun getContactFlow(contactId: Long): Flow<ContactRecord?>
     suspend fun getContacts(filter: String? = null): List<ContactRecord>
     fun getContactsFlow(filter: String? = null): Flow<List<ContactRecord>>
+    suspend fun getContactsByName(nameFilter: String): List<ContactRecord>
+    fun getContactsByNameFlow(nameFilter: String): Flow<List<ContactRecord>>
 
     suspend fun viewContact(contactId: Long)
     suspend fun editContact(contactId: Long)
@@ -56,6 +58,12 @@ class ContactRepositoryImpl  constructor(
 
     override fun getContactsFlow(filter: String?): Flow<List<ContactRecord>> =
         contentResolverFactory.getContactsContentResolver(filter = filter).getItemsFlow()
+
+    override suspend fun getContactsByName(nameFilter: String): List<ContactRecord> =
+        contentResolverFactory.getContactsContentResolver(nameFilter = nameFilter).getItems()
+
+    override fun getContactsByNameFlow(nameFilter: String): Flow<List<ContactRecord>> =
+        contentResolverFactory.getContactsContentResolver(nameFilter = nameFilter).getItemsFlow()
 
     override suspend fun createContact(number: String) {
         context.startActivity(

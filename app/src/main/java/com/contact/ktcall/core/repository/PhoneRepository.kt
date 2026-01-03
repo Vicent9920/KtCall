@@ -10,6 +10,9 @@ interface PhoneRepository : BaseRepository {
     suspend fun getPhones(contactId: Long? = null, filter: String? = null): List<PhoneRecord>
     fun getPhonesFlow(contactId: Long? = null, filter: String? = null): Flow<List<PhoneRecord>>
 
+    suspend fun getPhonesByNumber(numberFilter: String): List<PhoneRecord>
+    fun getPhonesByNumberFlow(numberFilter: String): Flow<List<PhoneRecord>>
+
     suspend fun lookupAccount(number: String?): PhoneLookupRecord?
     suspend fun getContactAccounts(contactId: Long): List<PhoneRecord>
     fun getContactAccountsFlow(contactId: Long): Flow<List<PhoneRecord>>
@@ -38,6 +41,12 @@ class PhoneRepositoryImpl  constructor(
         } catch (e: RuntimeException) {
             null
         }
+
+    override suspend fun getPhonesByNumber(numberFilter: String): List<PhoneRecord> =
+        contentResolverFactory.getPhonesContentResolver(numberFilter = numberFilter).getItems()
+
+    override fun getPhonesByNumberFlow(numberFilter: String): Flow<List<PhoneRecord>> =
+        contentResolverFactory.getPhonesContentResolver(numberFilter = numberFilter).getItemsFlow()
 
     override suspend fun getContactAccounts(contactId: Long): List<PhoneRecord> =
         contentResolverFactory.getPhonesContentResolver(contactId = contactId).getItems()

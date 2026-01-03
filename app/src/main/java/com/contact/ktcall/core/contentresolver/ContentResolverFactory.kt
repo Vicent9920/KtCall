@@ -3,7 +3,8 @@ package com.contact.ktcall.core.contentresolver
 interface ContentResolverFactory {
     fun getPhonesContentResolver(
         filter: String? = null,
-        contactId: Long? = null
+        contactId: Long? = null,
+        numberFilter: String? = null
     ): PhonesContentResolver
 
     fun getRecentsContentResolver(
@@ -23,6 +24,7 @@ interface ContentResolverFactory {
 
     fun getContactsContentResolver(
         filter: String? = null,
-        contactId: Long? = null
+        contactId: Long? = null,
+        nameFilter: String? = null
     ): ContactsContentResolver
 }

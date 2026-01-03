@@ -68,7 +68,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.blankj.utilcode.util.LogUtils
+import com.contact.ktcall.core.data.record.ContactRecord
+import com.contact.ktcall.ui.screen.dialpad.ContactRecordEvent
 import com.contact.ktcall.ui.screen.dialpad.DialPadViewModel
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 
 // --- 1. 常量定义 (复刻三星绿) ---
@@ -77,36 +80,27 @@ val DividerColor = Color(0xFFE0E0E0)
 val TextPrimary = Color(0xFF212121)
 val TextSecondary = Color(0xFF757575)
 
-// --- 2. 数据模型 ---
-data class Contact(
-    val id: String,
-    val phoneNumber: String,
-    val secondaryInfo: String,
-    val avatarColor: Color
-)
 
-fun getDummyContacts(): List<Contact> {
-    val colors = listOf(
-        Color(0xFF9FA8DA), Color(0xFFEF9A9A), Color(0xFFFFCC80),
-        Color(0xFFA5D6A7), Color(0xFFCE93D8)
-    )
-    val list = mutableListOf<Contact>()
-    // 模拟视频中的大量数据
-    val prefixes = listOf("11111111", "11111755", "11111333", "11152541", "12211452")
-    for (i in 0..50) {
-        val prefix = prefixes[i % prefixes.size]
-        val suffix = (1000..9999).random()
-        list.add(
-            Contact(
-                id = i.toString(),
-                phoneNumber = "$prefix$suffix",
-                secondaryInfo = "00:15  101 193 1000..9999", // 模拟视频中的详细信息格式
-                avatarColor = colors[i % colors.size]
-            )
-        )
-    }
-    return list
-}
+
+//fun getDummyContacts(): List<Contact> {
+
+//    val list = mutableListOf<Contact>()
+//    // 模拟视频中的大量数据
+//    val prefixes = listOf("11111111", "11111755", "11111333", "11152541", "12211452")
+//    for (i in 0..50) {
+//        val prefix = prefixes[i % prefixes.size]
+//        val suffix = (1000..9999).random()
+//        list.add(
+//            Contact(
+//                id = i.toString(),
+//                phoneNumber = "$prefix$suffix",
+//                secondaryInfo = "00:15  101 193 1000..9999", // 模拟视频中的详细信息格式
+//                avatarColor = colors[i % colors.size]
+//            )
+//        )
+//    }
+//    return list
+//}
 
 // --- 主界面 DialPadScreen ---
 @Composable
@@ -117,22 +111,21 @@ fun DialPadScreen(viewModel: DialPadViewModel = viewModel(),
     var inputNumber by remember { mutableStateOf("") }
     var isDialPadExpanded by remember { mutableStateOf(true) }
 
-    val allContacts = remember { getDummyContacts() }
+    var allContacts by remember { mutableStateOf(ContactRecordEvent(emptyList())) }
 
-    val searchResults = remember(inputNumber) {
-        if (inputNumber.isEmpty()) emptyList()
-        else allContacts.filter { it.phoneNumber.contains(inputNumber) }
-    }
 
-    LaunchedEffect(Unit) {
-        launch {
-            viewModel.getContacts("1").collect {
-                LogUtils.d("getContacts: $it")
-            }
-        }
-    }
+
+
 
     LaunchedEffect(inputNumber) {
+        launch {
+            viewModel.queryContacts(inputNumber)
+                .catch {
+                    allContacts = ContactRecordEvent(emptyList())
+                }.collect { list ->
+                    allContacts = ContactRecordEvent(list)
+                }
+        }
         val isSearching = inputNumber.isNotEmpty()
         onSearchStateChanged(isSearching)
         if (isSearching) {
@@ -143,7 +136,7 @@ fun DialPadScreen(viewModel: DialPadViewModel = viewModel(),
     val nestedScrollConnection = remember {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                if (isDialPadExpanded && source == NestedScrollSource.Drag) {
+                if (isDialPadExpanded && source == NestedScrollSource.Drag && allContacts.list.isNotEmpty()) {
                     isDialPadExpanded = false
                 }
                 return Offset.Zero
@@ -187,7 +180,7 @@ fun DialPadScreen(viewModel: DialPadViewModel = viewModel(),
                 // 收起时：留出 FAB 高度 + 导航栏高度 (约100dp)
                 contentPadding = PaddingValues(bottom = if (isDialPadExpanded) 420.dp else 0.dp)
             ) {
-                items(searchResults) { contact ->
+                items(allContacts.list) { contact ->
                     SearchContactItem(contact, inputNumber)
                 }
             }
@@ -298,10 +291,10 @@ fun TopActionToolbar() {
 }
 
 @Composable
-fun SearchContactItem(contact: Contact, highlight: String) {
+fun SearchContactItem(contact: ContactRecord, highlight: String) {
     // 文本高亮逻辑
     val annotatedString = buildAnnotatedString {
-        val str = contact.phoneNumber
+        val str = contact.name?: ""
         val index = str.indexOf(highlight)
         if (index >= 0) {
             append(str.substring(0, index))
@@ -337,18 +330,15 @@ fun SearchContactItem(contact: Contact, highlight: String) {
             )
         }
         Spacer(modifier = Modifier.width(16.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            // 使用高亮文本
-            Text(
-                text = annotatedString,
-                style = TextStyle(fontSize = 18.sp, color = TextPrimary)
-            )
-            Text(
-                text = contact.secondaryInfo,
-                style = TextStyle(fontSize = 13.sp, color = TextSecondary),
-                maxLines = 1
-            )
-        }
+        Text(
+            text = annotatedString,
+            style = TextStyle(fontSize = 18.sp, color = TextPrimary)
+        )
+        Text(
+            text = contact.number?: "",
+            style = TextStyle(fontSize = 13.sp, color = TextSecondary),
+            maxLines = 1
+        )
     }
 }
 

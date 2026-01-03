@@ -16,19 +16,23 @@ class ContentResolverFactoryImpl constructor(
 
     override fun getPhonesContentResolver(
         filter: String?,
-        contactId: Long?
+        contactId: Long?,
+        numberFilter: String?
     ) = PhonesContentResolver(
         filter = filter,
         contactId = contactId,
+        numberFilter = numberFilter,
         contentResolver = contentResolver
     )
 
     override fun getContactsContentResolver(
         filter: String?,
-        contactId: Long?
+        contactId: Long?,
+        nameFilter: String?
     ) = ContactsContentResolver(
         filter = filter,
         contactId = contactId,
+        nameFilter = nameFilter,
         contentResolver = contentResolver
     )
 

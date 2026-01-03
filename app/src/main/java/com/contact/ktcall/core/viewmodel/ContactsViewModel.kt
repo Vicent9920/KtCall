@@ -11,8 +11,8 @@ interface ContactsViewModel : RecordsListViewModel<ContactData, ContactRecord>
 
 
 class ContactsViewModelImpl constructor(
-    private val phoneRepository: PhoneRepository,
-    private val contactRepository: ContactRepository
+    val phoneRepository: PhoneRepository,
+    val contactRepository: ContactRepository
 ) : RecordsListViewModelImpl<ContactData, ContactRecord>() {
     override suspend fun convertRecordToItem(record: ContactRecord) = ContactData(
         id = record.id,

@@ -11,12 +11,21 @@ import com.contact.ktcall.utils.SelectionBuilder
 class ContactsContentResolver(
     filter: String? = null,
     contactId: Long? = null,
+    nameFilter: String? = null,
     contentResolver: ContentResolver
-) : BaseContentResolver<ContactRecord>(filter, contentResolver) {
+) : BaseContentResolver<ContactRecord>(null, contentResolver) {
 
-    override val selectionArgs: Array<String>? = null
+    private val selectionBuilder = SelectionBuilder()
+
+    init {
+        selectionBuilder.addNotNull(ContactsContract.Contacts.DISPLAY_NAME_PRIMARY)
+        contactId?.let { selectionBuilder.addSelection(ContactsContract.Contacts._ID, it) }
+        nameFilter?.let { selectionBuilder.addLike(ContactsContract.Contacts.DISPLAY_NAME_PRIMARY, it) }
+    }
+
+    override val selectionArgs: Array<String>? = selectionBuilder.getSelectionArgs()
     override val uri: Uri = ContactsContract.Contacts.CONTENT_URI
-    override val filterUri: Uri = ContactsContract.Contacts.CONTENT_FILTER_URI
+    override val filterUri: Uri? = null // 禁用filterUri，使用自定义selection
     override val sortOrder: String = "${ContactsContract.Contacts.SORT_KEY_PRIMARY} ASC"
     override val projection: Array<String> = arrayOf(
         ContactsContract.Contacts._ID,
@@ -25,11 +34,12 @@ class ContactsContentResolver(
         ContactsContract.Contacts.DISPLAY_NAME_PRIMARY,
         ContactsContract.Contacts.PHOTO_THUMBNAIL_URI,
     )
-    override val selection by lazy {
-        SelectionBuilder()
-            .addNotNull(ContactsContract.Contacts.DISPLAY_NAME_PRIMARY)
-            .addSelection(ContactsContract.Contacts._ID, contactId)
-            .build()
+    override val selection = selectionBuilder.build()
+
+    init {
+        // 调试日志
+        android.util.Log.d("ContactsContentResolver", "selection: $selection")
+        android.util.Log.d("ContactsContentResolver", "selectionArgs: ${selectionArgs?.joinToString()}")
     }
 
     @SuppressLint("Range")

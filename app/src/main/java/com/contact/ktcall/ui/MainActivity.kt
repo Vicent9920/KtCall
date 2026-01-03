@@ -1,13 +1,7 @@
 package com.contact.ktcall.ui
 
 import DialPadScreen
-import android.app.Activity
-import android.app.role.RoleManager
-import android.content.Context
-import android.content.Intent
-import android.os.Build
 import android.os.Bundle
-import android.telecom.TelecomManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.animation.AnimatedVisibility
@@ -41,10 +35,10 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.blankj.utilcode.util.BarUtils
-import com.blankj.utilcode.util.LogUtils
 import com.contact.ktcall.R
 import com.contact.ktcall.ui.screen.calling.CallingScreen
 import com.contact.ktcall.ui.screen.calllog.CallLogScreen
+import com.contact.ktcall.ui.screen.contact.ContactsScreen
 
 
 // --- 1. 路由定义 (Route Definition) ---
@@ -85,34 +79,6 @@ class MainActivity : ComponentActivity() {
 
     }
 
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        Activity.RESULT_CANCELED
-        LogUtils.e("onActivityResult: requestCode=$requestCode, resultCode=$resultCode")
-    }
-
-    private fun checkDefaultDialer() {
-        val telecomManager = getSystemService(TELECOM_SERVICE) as TelecomManager
-        val isAlreadyDefault = packageName == telecomManager.defaultDialerPackage
-
-        if (isAlreadyDefault) {
-            // 已经是默认拨号器
-            return
-        }
-
-        // 发起请求意图
-        val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            // Android 10 (API 29) 及以上使用 RoleManager
-            val roleManager = getSystemService(Context.ROLE_SERVICE) as RoleManager
-            roleManager.createRequestRoleIntent(RoleManager.ROLE_DIALER)
-        } else {
-            // Android 9 及以下使用 TelecomManager
-            Intent(TelecomManager.ACTION_CHANGE_DEFAULT_DIALER).apply {
-                putExtra(TelecomManager.EXTRA_CHANGE_DEFAULT_DIALER_PACKAGE_NAME, packageName)
-            }
-        }
-        startActivityForResult(intent, 1001)
-    }
 }
 
 @Composable

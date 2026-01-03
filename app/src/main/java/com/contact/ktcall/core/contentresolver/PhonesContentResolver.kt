@@ -11,14 +11,31 @@ import com.contact.ktcall.utils.SelectionBuilder
 class PhonesContentResolver(
     filter: String? = null,
     contactId: Long? = null,
+    numberFilter: String? = null,
     contentResolver: ContentResolver
-) : BaseContentResolver<PhoneRecord>(filter, contentResolver) {
+) : BaseContentResolver<PhoneRecord>(null, contentResolver) {
+
+    private val selectionBuilder = SelectionBuilder()
+
+    init {
+        contactId?.let { selectionBuilder.addSelection(Phone.CONTACT_ID, it) }
+        numberFilter?.let {
+            // 同时搜索NUMBER和NORMALIZED_NUMBER字段
+            selectionBuilder.addOrLike(arrayOf(Phone.NORMALIZED_NUMBER, Phone.NUMBER), it)
+        }
+    }
 
     override val uri: Uri = Phone.CONTENT_URI
     override val sortOrder: String? = null
-    override val filterUri: Uri = Phone.CONTENT_FILTER_URI
-    override val selectionArgs: Array<String>? = null
-    override val selection = SelectionBuilder().addSelection(Phone.CONTACT_ID, contactId).build()
+    override val filterUri: Uri? = null // 禁用filterUri，使用自定义selection
+    override val selectionArgs: Array<String>? = selectionBuilder.getSelectionArgs()
+    override val selection = selectionBuilder.build()
+
+    init {
+        // 调试日志
+        android.util.Log.d("PhonesContentResolver", "selection: $selection")
+        android.util.Log.d("PhonesContentResolver", "selectionArgs: ${selectionArgs?.joinToString()}")
+    }
     override val projection: Array<String> = arrayOf(
         Phone.TYPE,
         Phone.LABEL,

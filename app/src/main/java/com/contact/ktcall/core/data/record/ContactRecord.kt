@@ -1,5 +1,7 @@
 package com.contact.ktcall.core.data.record
 
+import androidx.compose.ui.graphics.Color
+
 data class ContactRecord(
     val id: Long = 0,
     val name: String? = null,
@@ -14,4 +16,6 @@ data class ContactRecord(
     override fun hashCode(): Int {
         return id.hashCode()
     }
+
+    var avatarColor = Color(0xFF9FA8DA)
 }
