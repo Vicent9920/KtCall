@@ -77,9 +77,9 @@ class CallLogViewModel : BaseViewModelImpl(), RecordsListViewModel<CallLogEntry,
 
             // 使用复合key确保唯一性：使用index和原始id的组合
             val uniqueId = "${grouped.id}_${grouped.date.time}_${index}".hashCode()
-            LogUtils.e("onRecordsChanged  grouped ${grouped.duration}")
             CallLogEntry(
                 id = uniqueId,
+                name = grouped.name,
                 nameOrNumber = grouped.name ?: grouped.number,
                 count = count,
                 type = type,
