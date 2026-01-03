@@ -2,6 +2,7 @@ package com.contact.ktcall.ui.screen.contact
 
 import android.annotation.SuppressLint
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -11,6 +12,7 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -19,6 +21,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -36,16 +39,41 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.blankj.utilcode.util.LogUtils
+import com.contact.ktcall.core.data.ContactData
+import com.contact.ktcall.utils.LoadingState
+import com.contact.ktcall.utils.getSortKey
+import com.github.promeg.pinyinhelper.Pinyin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.abs
-import kotlin.random.Random
 
 // --- 1. 数据模型 ---
 
 data class Contact(
-    val id: Int, val name: String, val phone: String, val color: Color, val firstChar: String
+    val id: Long,
+    val name: String,
+    val phone: String?,
+    val color: Color,
+    val firstChar: String,
+    val isFavorite: Boolean = false
 )
+
+// 将 ContactData 转换为 UI 使用的 Contact
+fun ContactData.toContact(color: Color): Contact {
+    val displayName = this.name ?: "未知联系人"
+    // 修复引用问题，调用 ContactDataProcessor 内部的方法或者直接逻辑
+    val firstChar = ContactDataProcessor.getPinyinChar(displayName)
+    return Contact(
+        id = this.id,
+        name = displayName,
+        phone = this.number ?: "",
+        color = color,
+        firstChar = firstChar,
+        isFavorite = this.isFavorite
+    )
+}
 
 sealed class ListItem {
     data class TopFunction(val title: String, val icon: ImageVector, val color: Color) : ListItem()
@@ -58,55 +86,55 @@ enum class ItemPosition {
     Top, Middle, Bottom, Single
 }
 
-object MockData {
+object ContactDataProcessor {
     private val topFunctions = listOf(
         ListItem.TopFunction("我的个人资料", Icons.Default.Person, Color(0xFFAB47BC)),
         ListItem.TopFunction("添加收藏的联系人", Icons.Default.Star, Color(0xFFFFA726)),
         ListItem.TopFunction("群组", Icons.Default.Group, Color(0xFFBDBDBD))
     )
 
-    private val firstNames = listOf("赵", "钱", "孙", "李", "周", "吴", "郑", "王", "冯", "陈", "蒋", "沈", "韩", "杨")
-    private val lastNames = listOf("伟", "芳", "娜", "敏", "静", "秀英", "丽", "强", "磊", "洋", "艳", "勇", "军", "杰", "娟", "涛")
     private val colors = listOf(
         Color(0xFFE57373), Color(0xFFF06292), Color(0xFFBA68C8), Color(0xFF9575CD),
         Color(0xFF7986CB), Color(0xFF64B5F6), Color(0xFF4FC3F7), Color(0xFF4DB6AC),
         Color(0xFFAED581), Color(0xFFFFD54F), Color(0xFFFFB74D), Color(0xFFA1887F)
     )
 
-    private fun getPinyinChar(name: String): String {
-        return when (name.first().toString()) {
-            "赵", "郑", "周", "朱", "张" -> "Z"
-            "钱", "强", "秦" -> "Q"
-            "孙", "沈" -> "S"
-            "李", "雷", "刘" -> "L"
-            "吴", "王", "卫", "魏" -> "W"
-            "冯", "方" -> "F"
-            "陈", "褚" -> "C"
-            "蒋", "姜" -> "J"
-            "韩", "何" -> "H"
-            "杨", "严" -> "Y"
+    fun getPinyinChar(name: String): String {
+        if (name.isEmpty()) return "#"
+        val firstChar = name[0]
+
+        return when {
+            // 中文字符：转换为拼音并取首字母大写
+            Pinyin.isChinese(firstChar) -> {
+                Pinyin.toPinyin(firstChar).first().toString()
+            }
+            // 英文字母：转为大写
+            firstChar.isLetter() -> {
+                firstChar.uppercaseChar().toString()
+            }
+            // 数字或其它符号：返回 #
             else -> "#"
         }
     }
 
-    fun getGroupedList(count: Int = 100): List<ListItem> {
-        val contacts = List(count) { id ->
-            val name = "${firstNames.random()}${lastNames.random()}"
-            Contact(
-                id = id,
-                name = name,
-                phone = "13${Random.nextInt(0, 9)} ${Random.nextInt(1000, 9999)} ${Random.nextInt(1000, 9999)}",
-                color = colors.random(),
-                firstChar = getPinyinChar(name)
-            )
-        }.sortedBy { it.firstChar }
-
+    // 将 ContactData 列表转换为分组的 ListItem 列表
+    fun getGroupedListFromContactData(contactDataList: List<ContactData>): List<ListItem> {
         val result = mutableListOf<ListItem>()
         result.addAll(topFunctions)
-        contacts.groupBy { it.firstChar }.forEach { (char, list) ->
-            result.add(ListItem.SectionHeader(char))
-            list.forEach { contact -> result.add(ListItem.ContactItem(contact)) }
+
+        if (contactDataList.isNotEmpty()) {
+            // 转换 ContactData 为 Contact，并分配颜色
+            val contacts = contactDataList.mapIndexed { index, contactData ->
+                contactData.toContact(colors[index % colors.size])
+            }
+
+            // 按首字母分组
+            contacts.groupBy { it.firstChar.getSortKey() }.forEach { (char, list) ->
+                result.add(ListItem.SectionHeader(char))
+                list.forEach { contact -> result.add(ListItem.ContactItem(contact)) }
+            }
         }
+
         return result
     }
 }
@@ -116,11 +144,18 @@ object MockData {
 @SuppressLint("UnusedBoxWithConstraintsScope")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ContactsScreen() {
-    val listItems = remember { MockData.getGroupedList(100) }
-    val contactCount = remember { listItems.count { it is ListItem.ContactItem } }
+fun ContactsScreen(viewModel: ContactsViewModel = viewModel()) {
+    val uiState by viewModel.uiState.collectAsState()
+    val listItems = remember(uiState.items) {
+        ContactDataProcessor.getGroupedListFromContactData(uiState.items)
+    }
+    val contactCount = uiState.items.size
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
+
+    // *** 关键状态：当前展开的联系人 ID ***
+    // 互斥逻辑：同一时间只能有一个 ID 被赋值
+    var expandedContactId by remember { mutableStateOf<Long?>(null) }
 
     // Header 动画相关变量
     val density = LocalDensity.current
@@ -177,6 +212,19 @@ fun ContactsScreen() {
         if (firstVisibleIndexState.value == 0) showFab = false
         else if (listState.isScrollInProgress) showFab = true
         else if (showFab) { delay(1000); showFab = false }
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.uiState.collect {
+            if (it.loadingState == LoadingState.SUCCESS){
+                it.items.take(5).forEachIndexed { index, data ->
+                    LogUtils.e("ContactData: $data")
+                    if (index == 0){
+                        viewModel.queryContactNumber(data)
+                    }
+                }
+            }
+        }
     }
 
     Box(
@@ -249,8 +297,20 @@ fun ContactsScreen() {
                         SectionHeaderRow(item.char)
                     }
                     is ListItem.ContactItem -> {
-                        // 联系人行（带侧滑、圆角、边距）
-                        SwipeableContactRow(item.data, position, showDivider)
+                        // 判断当前项是否展开
+                        val isExpanded = expandedContactId == item.data.id
+
+                        // 联系人行（带侧滑、圆角、边距、手风琴动画）
+                        SwipeableContactRow(
+                            contact = item.data,
+                            position = position,
+                            showDivider = showDivider,
+                            isExpanded = isExpanded,
+                            onItemClick = {
+                                // 切换展开状态：如果点的是当前已展开的，则收起(null)；否则展开新的
+                                expandedContactId = if (isExpanded) null else item.data.id
+                            }
+                        )
                     }
                 }
             }
@@ -424,66 +484,94 @@ fun TopFunctionHeaderRow() {
     }
 }
 
+// *** 核心修改组件：支持侧滑 + 点击展开动画 ***
 @Composable
-fun SwipeableContactRow(contact: Contact, position: ItemPosition, showDivider: Boolean) {
+fun SwipeableContactRow(
+    contact: Contact,
+    position: ItemPosition,
+    showDivider: Boolean,
+    isExpanded: Boolean,
+    onItemClick: () -> Unit
+) {
+    // 侧滑偏移量
     var offsetX by remember { mutableFloatStateOf(0f) }
     val screenWidth = with(LocalDensity.current) { LocalConfiguration.current.screenWidthDp.dp.toPx() }
     val actionThreshold = screenWidth * 0.3f
     val shape = getShapeForPosition(position)
 
-    // 整个 Row 都有左右边距
+    // 如果变成展开状态，强制复位侧滑（防止侧滑开着的时候点了展开，导致UI错位）
+    LaunchedEffect(isExpanded) {
+        if (isExpanded) {
+            offsetX = 0f
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp) // 关键：左右留白
-            .height(72.dp) // 关键：高度增加到 72dp
-            // 应用圆角 Clip，确保侧滑背景和白色前景都被裁切为圆角
+            .padding(horizontal = 16.dp)
             .clip(shape)
-            .pointerInput(Unit) {
-                detectHorizontalDragGestures(onDragEnd = {
-                    when {
-                        offsetX <= -actionThreshold -> { callContact(contact); offsetX = 0f }
-                        offsetX >= actionThreshold -> { sendMessage(contact); offsetX = 0f }
-                        else -> offsetX = 0f
-                    }
-                }, onHorizontalDrag = { change, dragAmount ->
-                    change.consume()
-                    offsetX = (offsetX + dragAmount).coerceIn(-screenWidth, screenWidth)
-                })
+            // *** 关键修改：禁用侧滑逻辑 ***
+            // 1. 将 isExpanded 作为 key，状态变化时重新构建输入处理
+            .pointerInput(isExpanded) {
+                // 2. 只有在【未展开】时才检测手势
+                if (!isExpanded) {
+                    detectHorizontalDragGestures(
+                        onDragEnd = {
+                            when {
+                                offsetX <= -actionThreshold -> {
+                                    callContact(contact)
+                                    offsetX = 0f
+                                }
+                                offsetX >= actionThreshold -> {
+                                    sendMessage(contact)
+                                    offsetX = 0f
+                                }
+                                else -> offsetX = 0f
+                            }
+                        },
+                        onHorizontalDrag = { change, dragAmount ->
+                            change.consume()
+                            offsetX = (offsetX + dragAmount).coerceIn(-screenWidth, screenWidth)
+                        }
+                    )
+                }
             }
     ) {
-        // 1. 侧滑背景 (Layer 1)
-        // 必须填满父容器，因为父容器已经 Clip 过了，所以这里不需要再 Clip
-        Row(
-            modifier = Modifier.fillMaxSize()
-        ) {
-            // 左滑显示的背景（绿色）
-            if (offsetX < 0) {
+        // 1. 侧滑背景层 (Swipe Layer)
+        // 仅在未展开且有偏移时显示，或者为了动画平滑始终保留但被前景遮挡
+        if (!isExpanded) {
+            Row(modifier = Modifier.matchParentSize()) {
+                // 左滑背景 (绿色 - 呼叫)
                 Box(
                     modifier = Modifier
-                        .fillMaxSize()
+                        .weight(1f)
+                        .fillMaxHeight()
                         .background(Color(0xFF4CAF50)),
                     contentAlignment = Alignment.CenterEnd
                 ) {
-                    Row(modifier = Modifier.padding(end = 24.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text("呼叫", color = Color.White, fontWeight = FontWeight.Bold)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Icon(Icons.Default.Call, contentDescription = null, tint = Color.White)
+                    if (offsetX < 0) { // 优化性能：只有滑动时才渲染内部图标
+                        Row(modifier = Modifier.padding(end = 24.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text("呼叫", color = Color.White, fontWeight = FontWeight.Bold)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Icon(Icons.Default.Call, contentDescription = null, tint = Color.White)
+                        }
                     }
                 }
-            }
-            // 右滑显示的背景（蓝色）
-            if (offsetX > 0) {
+                // 右滑背景 (蓝色 - 短信)
                 Box(
                     modifier = Modifier
-                        .fillMaxSize()
+                        .weight(1f)
+                        .fillMaxHeight()
                         .background(Color(0xFF2196F3)),
                     contentAlignment = Alignment.CenterStart
                 ) {
-                    Row(modifier = Modifier.padding(start = 24.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Filled.Email, contentDescription = null, tint = Color.White)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("短信", color = Color.White, fontWeight = FontWeight.Bold)
+                    if (offsetX > 0) {
+                        Row(modifier = Modifier.padding(start = 24.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Filled.Email, contentDescription = null, tint = Color.White)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("短信", color = Color.White, fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
             }
@@ -492,48 +580,145 @@ fun SwipeableContactRow(contact: Contact, position: ItemPosition, showDivider: B
         // 2. 前景白色内容 (Layer 2)
         Box(
             modifier = Modifier
-                .fillMaxSize()
+                .fillMaxWidth()
                 .offset { IntOffset(offsetX.toInt(), 0) }
                 .background(Color.White)
-                .clickable { offsetX = 0f }
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier.size(40.dp).clip(CircleShape).background(contact.color),
-                    contentAlignment = Alignment.Center
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null
                 ) {
-                    Text(text = contact.name.takeLast(1), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                    // 如果有侧滑偏移，点击则是复位；否则是执行点击回调（展开/收起）
+                    if (offsetX != 0f) offsetX = 0f else onItemClick()
                 }
-                Spacer(modifier = Modifier.width(16.dp))
-                Column(verticalArrangement = Arrangement.Center) {
-                    Text(
-                        text = contact.name,
-                        style = MaterialTheme.typography.bodyLarge.copy(fontSize = 17.sp),
-                        color = Color.Black,
-                        fontWeight = FontWeight.Medium
+        ) {
+            Column(
+                modifier = Modifier.animateContentSize() // 高度动画
+            ) {
+                // 2.1 头部信息 (始终显示，高度 72dp)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(72.dp)
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(contact.color),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = contact.name.first().toString(),
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column(verticalArrangement = Arrangement.Center) {
+                        Text(
+                            text = contact.name,
+                            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 17.sp),
+                            color = Color.Black,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+
+                // 2.2 展开后的详细区域 (根据截图调整布局)
+                if (isExpanded) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            // 左侧缩进对齐名字 (16dp margin + 40dp avatar + 16dp spacer = 72dp)
+                            .padding(start = 72.dp, end = 24.dp, bottom = 24.dp)
+                    ) {
+                        // 手机号：加粗，黑色
+                        val displayPhone = if (contact.phone.isNullOrEmpty()) "暂无号码" else contact.phone
+                        Text(
+                            text = "手机 $displayPhone",
+                            style = MaterialTheme.typography.bodyLarge.copy(
+                                fontWeight = FontWeight.Bold, // 截图显示号码较粗
+                                fontSize = 16.sp
+                            ),
+                            color = Color.Black
+                        )
+
+                        Spacer(modifier = Modifier.height(20.dp)) // 增加间距，让布局更像截图那样宽松
+
+                        // 操作按钮组
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween // 两端对齐，中间自动分配间距
+                        ) {
+                            // 呼叫 (绿)
+                            ActionButton(
+                                icon = Icons.Default.Call,
+                                backgroundColor = Color(0xFF4CAF50),
+                                onClick = { callContact(contact) }
+                            )
+                            // 短信 (蓝)
+                            ActionButton(
+                                icon = Icons.Filled.ChatBubble, // 实心气泡
+                                backgroundColor = Color(0xFF2196F3),
+                                onClick = { sendMessage(contact) }
+                            )
+                            // 视频 (绿 - 截图是摄像机)
+                            ActionButton(
+                                icon = Icons.Default.Videocam,
+                                backgroundColor = Color(0xFF4CAF50),
+                                onClick = { /* Video Call */ }
+                            )
+                            // 信息 (灰 - 截图是 i)
+                            ActionButton(
+                                icon = Icons.Default.Info, // 或者 Icons.Outlined.Info
+                                backgroundColor = Color(0xFF9E9E9E), // 灰色
+                                onClick = { /* Info */ }
+                            )
+                        }
+                    }
+                }
+
+                // 2.3 分割线
+                if (showDivider) {
+                    HorizontalDivider(
+                        modifier = Modifier.padding(start = 72.dp),
+                        color = Color(0xFFE0E0E0),
+                        thickness = 0.5.dp
                     )
                 }
-            }
-
-            // 3. 分割线
-            // 分割线必须在 offset 的 Box 内部，这样侧滑时分割线会随白色卡片一起移动
-            if (showDivider) {
-                HorizontalDivider(
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .padding(start = 72.dp), // 16+40+16
-                    color = Color(0xFFE0E0E0),
-                    thickness = 0.5.dp
-                )
             }
         }
     }
 }
+
+@Composable
+fun ActionButton(
+    icon: ImageVector,
+    backgroundColor: Color,
+    onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        shape = CircleShape,
+        color = backgroundColor,
+        modifier = Modifier.size(36.dp)
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = Color.White,
+                // 图标大小保持标准或微调
+                modifier = Modifier.size(24.dp)
+            )
+        }
+    }
+}
+
+
 
 // Mock actions
 fun callContact(contact: Contact) { println("Call ${contact.name}") }

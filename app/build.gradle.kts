@@ -63,4 +63,6 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
     implementation("com.blankj:utilcodex:1.31.1")
     implementation("com.pushtorefresh.storio3:content-resolver:3.0.0")
+    implementation("com.github.promeg:tinypinyin:2.0.3")
+    implementation("com.github.promeg:tinypinyin-lexicons-android-cncity:2.0.3")
 }
