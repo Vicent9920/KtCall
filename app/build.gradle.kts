@@ -51,7 +51,7 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
     // Material Icons Extended - 用于更多图标
-    implementation("androidx.compose.material:material-icons-extended")
+    implementation(libs.androidx.compose.material.icons.extended)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -62,8 +62,8 @@ dependencies {
 
     implementation(libs.androidx.navigation.compose)
     implementation(libs.kotlinx.coroutines.android)
-    implementation("com.blankj:utilcodex:1.31.1")
-    implementation("com.pushtorefresh.storio3:content-resolver:3.0.0")
-    implementation("com.github.promeg:tinypinyin:2.0.3")
-    implementation("com.github.promeg:tinypinyin-lexicons-android-cncity:2.0.3")
+    implementation(libs.utilcodex)
+    implementation(libs.content.resolver)
+    implementation(libs.tinypinyin)
+    implementation(libs.tinypinyin.lexicons.android.cncity)
 }

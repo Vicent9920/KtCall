@@ -20,19 +20,14 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckBox
 import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
-import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -47,19 +42,17 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.compose.ui.coordinator.CollapsingHeader
-import com.example.compose.ui.coordinator.CoordinatorLayout
-import com.example.compose.ui.coordinator.ScrollToTopFab
-import com.example.compose.ui.coordinator.rememberCollapsingToolbarState
-import com.example.compose.ui.coordinator.rememberScrollToTopFabVisibility
+import com.contact.ktcall.ui.screen.coordinator.CollapsingHeader
+import com.contact.ktcall.ui.screen.coordinator.CoordinatorLayout
+import com.contact.ktcall.ui.screen.coordinator.ScrollToTopFab
+import com.contact.ktcall.ui.screen.coordinator.rememberCollapsingToolbarState
+import com.contact.ktcall.ui.screen.coordinator.rememberScrollToTopFabVisibility
 import kotlinx.coroutines.launch
 
 /**

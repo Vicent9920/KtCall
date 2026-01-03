@@ -1,4 +1,4 @@
-package com.example.compose.ui.coordinator
+package com.contact.ktcall.ui.screen.coordinator
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable

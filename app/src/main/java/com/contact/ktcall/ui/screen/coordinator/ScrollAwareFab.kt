@@ -1,4 +1,4 @@
-package com.example.compose.ui.coordinator
+package com.contact.ktcall.ui.screen.coordinator
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
@@ -20,7 +20,6 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -29,6 +28,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.unit.dp
+import kotlin.math.abs
 
 /**
  * FAB滚动感知状态
@@ -81,7 +81,7 @@ class FabScrollState(
             }
 
             // 累计滚动量
-            accumulatedScroll += kotlin.math.abs(delta)
+            accumulatedScroll += abs(delta)
 
             // 达到阈值时更新可见性
             if (accumulatedScroll >= scrollThreshold) {

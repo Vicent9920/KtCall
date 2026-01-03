@@ -1,4 +1,4 @@
-package com.example.compose.ui.coordinator
+package com.contact.ktcall.ui.screen.coordinator
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
