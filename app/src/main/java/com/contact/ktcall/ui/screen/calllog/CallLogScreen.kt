@@ -26,7 +26,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -35,7 +34,6 @@ import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Message
-import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Videocam
@@ -48,7 +46,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -70,6 +67,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -110,6 +108,7 @@ fun CallLogScreen(viewModel: CallLogViewModel = viewModel()) {
     val uiState by viewModel.uiState.collectAsState()
     val rawData = uiState.items
     val groupedData = remember(rawData) { rawData.groupBy { it.dateLabel } }
+    val callLogCount = rawData.size
 
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
@@ -117,53 +116,176 @@ fun CallLogScreen(viewModel: CallLogViewModel = viewModel()) {
     // 默认展开 ID 为 3 (对应截图中的 157 5626 2958)
     var expandedItemId by remember { mutableIntStateOf(3) }
 
-    // Header 动画相关
+    // Header 动画相关变量
     val density = LocalDensity.current
-    val headerHeightDp = 120.dp
-    var toolbarHeightPx by remember { mutableFloatStateOf(0f) }
+    val headerHeightDp = 280.dp
+    val headerHeightPx = with(density) { headerHeightDp.toPx() }
+    var toolbarHeightPx by remember { mutableFloatStateOf(with(density) { 64.dp.toPx() }) }
+    val collapseRangePx = headerHeightPx - toolbarHeightPx
+    val maxToolbarOffsetPx = collapseRangePx
+    val scrollOffsetState =
+        remember { derivedStateOf { listState.firstVisibleItemScrollOffset.toFloat() } }
+    val firstVisibleIndexState = remember { derivedStateOf { listState.firstVisibleItemIndex } }
 
-    // 背景色：整个页面的背景设为浅灰色，这样白色的 Item 才能显现出“留白”效果
-    val backgroundColor = Color(0xFFF2F2F2)
-
-    Scaffold(
-        containerColor = backgroundColor,
-        topBar = {
-            TopAppBar(
-                title = { Text("电话", fontWeight = FontWeight.Bold) },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = backgroundColor),
-                actions = {
-                    IconButton(onClick = {}) { Icon(Icons.Default.FilterList, "Filter") }
-                    IconButton(onClick = {}) { Icon(Icons.Default.Search, "Search") }
-                    IconButton(onClick = {}) { Icon(Icons.Default.MoreVert, "More") }
-                }
-            )
+    val collapseFractionState = remember(collapseRangePx) {
+        derivedStateOf {
+            if (firstVisibleIndexState.value > 0) 1f
+            else (scrollOffsetState.value / collapseRangePx).coerceIn(0f, 1f)
         }
-    ) { paddingValues ->
-        Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
-            LazyColumn(
-                state = listState,
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(bottom = 80.dp)
-            ) {
-                // 占位
-                item { Spacer(modifier = Modifier.height(1.dp)) }
+    }
+    val collapseFraction by collapseFractionState
 
-                groupedData.forEach { (date, logs) ->
-                    // 1. 日期标题
-                    stickyHeader {
-                        DateHeader(date)
+    val showToolbarBackground by remember { derivedStateOf { collapseFractionState.value > 0.9f } }
+    val toolbarAlpha by animateFloatAsState(
+        targetValue = if (showToolbarBackground) 1f else 0f,
+        label = ""
+    )
+    val toolbarTitleAlpha by animateFloatAsState(
+        targetValue = if (showToolbarBackground) 1f else 0f,
+        label = ""
+    )
+    val toolbarTranslationY by remember(maxToolbarOffsetPx) {
+        derivedStateOf {
+            if (firstVisibleIndexState.value == 0) (maxToolbarOffsetPx - scrollOffsetState.value).coerceAtLeast(
+                0f
+            ) else 0f
+        }
+    }
+    val bigTitleAlpha by remember {
+        derivedStateOf {
+            val fraction = collapseFractionState.value
+            if (fraction > 0.7f) 1f - ((fraction - 0.7f) / 0.3f).coerceIn(0f, 1f) else 1f
+        }
+    }
+
+    var showFab by remember { mutableStateOf(false) }
+    LaunchedEffect(listState.isScrollInProgress, firstVisibleIndexState.value) {
+        if (firstVisibleIndexState.value == 0) showFab = false
+        else if (listState.isScrollInProgress) showFab = true
+        else if (showFab) {
+            delay(1000); showFab = false
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFFF2F2F7))
+    ) {
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(bottom = 80.dp)
+        ) {
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(headerHeightDp)
+                        .background(Color(0xFFF2F2F7))
+                ) {
+                    val maxWidthPx =
+                        with(density) { LocalConfiguration.current.screenWidthDp.dp.toPx() }
+                    val textGraphicsModifier = Modifier.graphicsLayer {
+                        alpha = bigTitleAlpha
+                        translationX = -maxWidthPx * 0.35f * collapseFraction
+                        translationY = collapseFraction * (headerHeightPx - toolbarHeightPx) * 0.5f
+                        val scale = 1f - (0.2f * collapseFraction)
+                        scaleX = scale
+                        scaleY = scale
                     }
-
-                    // 2. 将同一天的所有记录放在一个 Item 里，包裹在一个 Card 中
-                    item {
-                        GroupedCallLogCard(
-                            logs = logs,
-                            expandedItemId = expandedItemId,
-                            onItemClick = { clickedId ->
-                                expandedItemId = if (expandedItemId == clickedId) -1 else clickedId
-                            }
+                    Column(
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .then(textGraphicsModifier),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "电话",
+                            style = MaterialTheme.typography.displayMedium.copy(fontWeight = FontWeight.Bold),
+                            color = Color.Black
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = Color.Gray
                         )
                     }
+                }
+            }
+
+            groupedData.forEach { (date, logs) ->
+                // 1. 日期标题
+                stickyHeader {
+                    DateHeader(date)
+                }
+
+                // 2. 将同一天的所有记录放在一个 Item 里，包裹在一个 Card 中
+                item {
+                    GroupedCallLogCard(
+                        logs = logs,
+                        expandedItemId = expandedItemId,
+                        onItemClick = { clickedId ->
+                            expandedItemId = if (expandedItemId == clickedId) -1 else clickedId
+                        }
+                    )
+                }
+            }
+        }
+
+        // Toolbar
+        TopAppBar(
+            title = {
+                Text(
+                    text = "电话",
+                    style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.graphicsLayer { alpha = toolbarTitleAlpha }
+                )
+            },
+            colors = TopAppBarDefaults.topAppBarColors(
+                containerColor = Color(0xFFF2F2F7).copy(alpha = toolbarAlpha),
+                scrolledContainerColor = Color(0xFFF2F2F7).copy(alpha = toolbarAlpha)
+            ),
+            actions = {
+                IconButton(onClick = {}) {
+                    Icon(
+                        Icons.Default.FilterList,
+                        contentDescription = "筛选"
+                    )
+                }
+                IconButton(onClick = {}) { Icon(Icons.Default.Search, contentDescription = "搜索") }
+                IconButton(onClick = {}) {
+                    Icon(
+                        Icons.Default.MoreVert,
+                        contentDescription = "更多"
+                    )
+                }
+            },
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .onGloballyPositioned { coordinates ->
+                    if (abs(toolbarHeightPx - coordinates.size.height.toFloat()) > 1f) toolbarHeightPx =
+                        coordinates.size.height.toFloat()
+                }
+                .graphicsLayer { translationY = toolbarTranslationY }
+        )
+
+        // FAB
+        Box(modifier = Modifier
+            .align(Alignment.BottomCenter)
+            .padding(bottom = 32.dp)) {
+            AnimatedVisibility(
+                visible = showFab,
+                enter = scaleIn() + fadeIn(),
+                exit = scaleOut() + fadeOut()
+            ) {
+                FloatingActionButton(
+                    onClick = { coroutineScope.launch { listState.animateScrollToItem(0) } },
+                    shape = CircleShape,
+                    containerColor = MaterialTheme.colorScheme.primary
+                ) {
+                    Icon(Icons.Default.KeyboardArrowUp, contentDescription = null)
                 }
             }
         }
@@ -261,7 +383,10 @@ private fun CallLogItemContent(
                 Spacer(modifier = Modifier.width(18.dp)) // 调整间距以匹配分割线缩进
 
                 // 名字 + 次数
-                Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Text(
                         text = entry.nameOrNumber,
                         fontSize = 17.sp,
@@ -270,7 +395,12 @@ private fun CallLogItemContent(
                     )
                     if (entry.count > 1) {
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text(text = "(${entry.count})", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = primaryTextColor)
+                        Text(
+                            text = "(${entry.count})",
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = primaryTextColor
+                        )
                     }
                 }
 
@@ -304,7 +434,7 @@ private fun CallLogItemContent(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = entry.type.name+" , "+entry.duration,
+                    text = entry.type.name + " , " + entry.duration,
                     fontSize = 14.sp,
                     color = subTextColor
                 )
@@ -334,7 +464,7 @@ private fun CallLogItemContent(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            if (entry.name.isNullOrEmpty()){
+            if (entry.name.isNullOrEmpty()) {
                 // 5. 底部按钮
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -361,7 +491,12 @@ fun ActionCircleButton(icon: ImageVector, color: Color, isVector: Boolean = true
             .clickable { },
         contentAlignment = Alignment.Center
     ) {
-        Icon(imageVector = icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(26.dp))
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = Color.White,
+            modifier = Modifier.size(26.dp)
+        )
     }
 }
 
