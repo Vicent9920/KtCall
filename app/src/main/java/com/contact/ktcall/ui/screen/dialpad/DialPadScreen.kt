@@ -80,28 +80,6 @@ val DividerColor = Color(0xFFE0E0E0)
 val TextPrimary = Color(0xFF212121)
 val TextSecondary = Color(0xFF757575)
 
-
-
-//fun getDummyContacts(): List<Contact> {
-
-//    val list = mutableListOf<Contact>()
-//    // 模拟视频中的大量数据
-//    val prefixes = listOf("11111111", "11111755", "11111333", "11152541", "12211452")
-//    for (i in 0..50) {
-//        val prefix = prefixes[i % prefixes.size]
-//        val suffix = (1000..9999).random()
-//        list.add(
-//            Contact(
-//                id = i.toString(),
-//                phoneNumber = "$prefix$suffix",
-//                secondaryInfo = "00:15  101 193 1000..9999", // 模拟视频中的详细信息格式
-//                avatarColor = colors[i % colors.size]
-//            )
-//        )
-//    }
-//    return list
-//}
-
 // --- 主界面 DialPadScreen ---
 @Composable
 fun DialPadScreen(viewModel: DialPadViewModel = viewModel(),
@@ -112,10 +90,6 @@ fun DialPadScreen(viewModel: DialPadViewModel = viewModel(),
     var isDialPadExpanded by remember { mutableStateOf(true) }
 
     var allContacts by remember { mutableStateOf(ContactRecordEvent(emptyList())) }
-
-
-
-
 
     LaunchedEffect(inputNumber) {
         launch {

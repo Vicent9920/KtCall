@@ -13,6 +13,8 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
     <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL" />
 
     <uses-feature
         android:name="android.hardware.telephony"
@@ -80,11 +82,15 @@
         <activity android:name=".ui.DefaultDialerRequestActivity"
             android:exported="true"/>
 
+        <activity android:name=".ui.InCallActivity"
+            android:exported="true"/>
+
         <service
             android:name=".service.KtInCallService"
             android:exported="true"
             android:foregroundServiceType="phoneCall"
-            android:permission="android.permission.BIND_INCALL_SERVICE">
+            android:permission="android.permission.BIND_INCALL_SERVICE"
+            tools:ignore="ForegroundServicePermission">
 
             <meta-data
                 android:name="android.telecom.IN_CALL_SERVICE_UI"
@@ -93,6 +99,12 @@
             <intent-filter>
                 <action android:name="android.telecom.InCallService" />
             </intent-filter>
+        </service>
+
+        <service
+            android:name=".service.CallForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="phoneCall">
         </service>
 
 

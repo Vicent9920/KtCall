@@ -36,9 +36,10 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.blankj.utilcode.util.BarUtils
 import com.contact.ktcall.R
-import com.contact.ktcall.ui.screen.calling.CallingScreen
+import com.contact.ktcall.ui.screen.calling.InCallScreen
 import com.contact.ktcall.ui.screen.calllog.CallLogScreen
 import com.contact.ktcall.ui.screen.contact.ContactsScreen
+import com.contact.ktcall.utils.callPhone
 
 
 // --- 1. 路由定义 (Route Definition) ---
@@ -124,7 +125,7 @@ fun DialerApp() {
                 // 3. 将状态回调传递给 DialPadScreen
                 DialPadScreen(
                     onCallClick = { number ->
-                        navController.navigate(Screen.InCall.createRoute(number))
+                       number.callPhone()
                     },
                     // 当输入框不为空时，隐藏底部栏
                     onSearchStateChanged = { isSearching ->
@@ -144,7 +145,7 @@ fun DialerApp() {
             composable(Screen.InCall.route) { backStackEntry ->
                 LaunchedEffect(Unit) { isBottomBarVisible = false } // 通话中肯定不显示
                 val number = backStackEntry.arguments?.getString("number") ?: ""
-                CallingScreen(number = number) { navController.popBackStack() }
+                InCallScreen()
             }
         }
     }

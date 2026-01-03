@@ -61,6 +61,7 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 
     implementation(libs.androidx.navigation.compose)
+    implementation(libs.kotlinx.coroutines.android)
     implementation("com.blankj:utilcodex:1.31.1")
     implementation("com.pushtorefresh.storio3:content-resolver:3.0.0")
     implementation("com.github.promeg:tinypinyin:2.0.3")
