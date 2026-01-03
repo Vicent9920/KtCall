@@ -1,6 +1,7 @@
 package com.contact.ktcall.ui
 
 import DialPadScreen
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -64,6 +65,7 @@ val bottomNavItems = listOf(
 
 // --- 2. 主入口 (Main Entry) ---
 class MainActivity : ComponentActivity() {
+    private var hasCheckedDefaultDialer = false
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         BarUtils.setStatusBarLightMode(this,true)
@@ -72,12 +74,14 @@ class MainActivity : ComponentActivity() {
                 DialerApp()
             }
         }
-
+        if (!hasCheckedDefaultDialer) {
+            startActivity(Intent(this, DefaultDialerRequestActivity::class.java))
+            hasCheckedDefaultDialer = true
+        }
     }
 
     override fun onResume() {
         super.onResume()
-
     }
 
 }

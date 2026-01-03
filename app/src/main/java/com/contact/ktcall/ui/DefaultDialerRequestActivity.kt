@@ -1,9 +1,6 @@
 package com.contact.ktcall.ui
 
-import android.app.Activity
 import android.app.role.RoleManager
-import android.content.Context
-import android.content.ContextWrapper
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
@@ -31,7 +28,7 @@ class DefaultDialerRequestActivity : ComponentActivity() {
         if (requestCode == REQUEST_CODE_DEFAULT_DIALER) {
             lifecycleScope.launch {
                 when (resultCode) {
-                    Activity.RESULT_OK -> permissionUseCase.entryDefaultDialerResult(true)
+                    RESULT_OK -> permissionUseCase.entryDefaultDialerResult(true)
                     else -> permissionUseCase.entryDefaultDialerResult(false)
                 }
             }
@@ -41,7 +38,8 @@ class DefaultDialerRequestActivity : ComponentActivity() {
 
 
     private fun checkDefaultDialer() {
-        permissionUseCase = PermissionRepositoryImpl((getSystemService(Context.TELECOM_SERVICE) as TelecomManager), this)
+        permissionUseCase =
+            PermissionRepositoryImpl((getSystemService(TELECOM_SERVICE) as TelecomManager), this)
         if (permissionUseCase.isDefaultDialer) {
             lifecycleScope.launch {
                 permissionUseCase.entryDefaultDialerResult(true)
@@ -50,7 +48,7 @@ class DefaultDialerRequestActivity : ComponentActivity() {
         }
 
         val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            (getSystemService(Context.ROLE_SERVICE) as RoleManager).createRequestRoleIntent(
+            (getSystemService(ROLE_SERVICE) as RoleManager).createRequestRoleIntent(
                 RoleManager.ROLE_DIALER
             )
         } else {
