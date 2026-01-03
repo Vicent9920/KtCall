@@ -1,7 +1,3 @@
-import android.Manifest
-import android.app.Activity
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
@@ -42,11 +38,7 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.VideoCall
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -66,7 +58,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -75,6 +66,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.blankj.utilcode.util.LogUtils
+import com.contact.ktcall.ui.screen.dialpad.DialPadViewModel
+import kotlinx.coroutines.launch
 
 // --- 1. 常量定义 (复刻三星绿) ---
 val SamsungGreen = Color(0xFF00C853) // 更鲜艳的绿色
@@ -115,7 +110,7 @@ fun getDummyContacts(): List<Contact> {
 
 // --- 主界面 DialPadScreen ---
 @Composable
-fun DialPadScreen(
+fun DialPadScreen(viewModel: DialPadViewModel = viewModel(),
     onCallClick: (String) -> Unit,
     onSearchStateChanged: (Boolean) -> Unit
 ) {
@@ -127,6 +122,14 @@ fun DialPadScreen(
     val searchResults = remember(inputNumber) {
         if (inputNumber.isEmpty()) emptyList()
         else allContacts.filter { it.phoneNumber.contains(inputNumber) }
+    }
+
+    LaunchedEffect(Unit) {
+        launch {
+            viewModel.getContacts("1").collect {
+                LogUtils.d("getContacts: $it")
+            }
+        }
     }
 
     LaunchedEffect(inputNumber) {
@@ -158,9 +161,9 @@ fun DialPadScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(bottom = 76.dp)
-                // [修复顶部距离核心]：
-                // 添加 statusBarsPadding，让内容自动避让状态栏高度。
-                // 同时也处理 displayCutout (刘海屏区域)，防止内容被刘海遮挡。
+            // [修复顶部距离核心]：
+            // 添加 statusBarsPadding，让内容自动避让状态栏高度。
+            // 同时也处理 displayCutout (刘海屏区域)，防止内容被刘海遮挡。
 //                .windowInsetsPadding(WindowInsets.statusBars.union(WindowInsets.displayCutout))
         ) {
 
@@ -194,8 +197,14 @@ fun DialPadScreen(
         AnimatedVisibility(
             visible = isDialPadExpanded,
             // 调整动画 Spec，让其更跟手
-            enter = slideInVertically(initialOffsetY = { it }, animationSpec = tween(300)) + fadeIn(),
-            exit = slideOutVertically(targetOffsetY = { it }, animationSpec = tween(300)) + fadeOut(),
+            enter = slideInVertically(
+                initialOffsetY = { it },
+                animationSpec = tween(300)
+            ) + fadeIn(),
+            exit = slideOutVertically(
+                targetOffsetY = { it },
+                animationSpec = tween(300)
+            ) + fadeOut(),
             modifier = Modifier.align(Alignment.BottomCenter)
         ) {
             Column(
@@ -218,7 +227,9 @@ fun DialPadScreen(
                 ActionRow(
                     inputNumber = inputNumber,
                     onCallClick = { if (inputNumber.isNotEmpty()) onCallClick(inputNumber) },
-                    onDeleteClick = { if (inputNumber.isNotEmpty()) inputNumber = inputNumber.dropLast(1) },
+                    onDeleteClick = {
+                        if (inputNumber.isNotEmpty()) inputNumber = inputNumber.dropLast(1)
+                    },
                     onDeleteLongClick = { inputNumber = "" }
                 )
 
@@ -269,8 +280,20 @@ fun TopActionToolbar() {
     ) {
         // 视频中顶部比较干净，这里保留功能按钮但调淡颜色
 //        IconButton(onClick = { }) { Icon(Icons.Default.Task, contentDescription = null, tint = TextSecondary) }
-        IconButton(onClick = { }) { Icon(Icons.Default.Search, contentDescription = null, tint = TextSecondary) }
-        IconButton(onClick = { }) { Icon(Icons.Default.MoreVert, contentDescription = null, tint = TextSecondary) }
+        IconButton(onClick = { }) {
+            Icon(
+                Icons.Default.Search,
+                contentDescription = null,
+                tint = TextSecondary
+            )
+        }
+        IconButton(onClick = { }) {
+            Icon(
+                Icons.Default.MoreVert,
+                contentDescription = null,
+                tint = TextSecondary
+            )
+        }
     }
 }
 
@@ -335,7 +358,10 @@ fun InputDisplayArea(number: String) {
         modifier = Modifier
             .fillMaxWidth()
             .height(70.dp) // 稍微加高
-            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) {
                 // 点击输入框通常不会有反应，或者光标控制
             },
         contentAlignment = Alignment.Center

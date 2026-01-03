@@ -7,13 +7,13 @@ plugins {
 android {
     namespace = "com.contact.ktcall"
     compileSdk {
-        version = release(36)
+        version = release(34)
     }
 
     defaultConfig {
         applicationId = "com.contact.ktcall"
         minSdk = 26
-        targetSdk = 36
+        targetSdk = 34
         versionCode = 1
         versionName = "1.0"
 
@@ -62,4 +62,5 @@ dependencies {
 
     implementation(libs.androidx.navigation.compose)
     implementation("com.blankj:utilcodex:1.31.1")
+    implementation("com.pushtorefresh.storio3:content-resolver:3.0.0")
 }
