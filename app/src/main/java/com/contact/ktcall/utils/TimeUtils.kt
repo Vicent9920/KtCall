@@ -44,6 +44,7 @@ fun getRelativeDateString(date: Date?): String {
     }
 }
 
+
 fun getTimeAgo(time: Long): String {
     val now = currentDate.time // get current time
     val diff = now - time // get the time difference between now and the given time
@@ -53,17 +54,18 @@ fun getTimeAgo(time: Long): String {
     }
 
     // return a string according to time difference from now
-    return when {
-        diff < MINUTE_MILLIS -> "Moments ago"
-        diff < 2 * MINUTE_MILLIS -> "A minute ago"
-        diff < HOUR_MILLIS -> "${diff / MINUTE_MILLIS} minutes ago"
-        diff < 2 * HOUR_MILLIS -> "An hour ago"
-        diff < DAY_MILLIS -> "${diff / HOUR_MILLIS} hours ago"
-        diff < 2 * DAY_MILLIS -> "Yesterday"
-        else -> {
-            DateFormatSymbols().shortMonths[DateFormat.format("MM", time).toString()
-                .toInt() - 1].toString() +
-                    DateFormat.format(" dd, hh:mm", time).toString()
-        }
-    }
+    return DateFormat.format("hh:mm", time).toString()
+//    return when {
+//        diff < MINUTE_MILLIS -> "Moments ago"
+//        diff < 2 * MINUTE_MILLIS -> "A minute ago"
+//        diff < HOUR_MILLIS -> "${diff / MINUTE_MILLIS} minutes ago"
+//        diff < 2 * HOUR_MILLIS -> "An hour ago"
+//        diff < DAY_MILLIS -> "${diff / HOUR_MILLIS} hours ago"
+//        diff < 2 * DAY_MILLIS -> "Yesterday"
+//        else -> {
+//            DateFormatSymbols().shortMonths[DateFormat.format("MM", time).toString()
+//                .toInt() - 1].toString() +
+//
+//        }
+//    }
 }
